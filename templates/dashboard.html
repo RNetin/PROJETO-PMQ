@@ -1,0 +1,85 @@
+{% extends "layout.html" %}
+
+{% block content %}
+    <hgroup>
+        <h1>Dashboard de Análises</h1>
+        <h2>Inicie uma nova análise ou continue um trabalho em andamento.</h2>
+    </hgroup>
+
+    <article>
+        <header><strong>Iniciar Nova Análise</strong></header>
+        <form action="{{ url_for('nova_analise') }}" method="post">
+            <div class="grid">
+                <label for="tipo_analise">
+                    Tipo de Análise
+                    <select id="tipo_analise" name="tipo_analise" required>
+                        <option value="" disabled selected>-- Selecione um tipo --</option>
+                        <option value="Prefeitura">Prefeitura</option>
+                        <option value="Câmara">Câmara</option>
+                    </select>
+                </label>
+                <label for="site_nome">
+                    Nome para Exibição
+                    <input type="text" id="site_nome" name="site_nome" placeholder="Ex: Prefeitura de São Luís" required>
+                </label>
+            </div>
+            <label for="site_url">URL Completa do Site</label>
+            <input type="url" id="site_url" name="site_url" placeholder="https://www.exemplo.com.br" required>
+            <button type="submit">Iniciar / Continuar Análise</button>
+        </form>
+    </article>
+
+    <article>
+        <header><strong>Análises em Andamento</strong></header>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 25%;">Nome do Site</th>
+                    <th>Tipo</th>
+                    <th>Pontuação</th>
+                    <th>Última Modificação</th>
+                    <th style="width: 30%; text-align: center;">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for analise in analises %}
+                <tr>
+                    <td>
+                        <a href="{{ analise.site_url }}" target="_blank" title="{{ analise.site_url }}">
+                            {{ analise.get('site_nome', analise.site_url) }}
+                        </a>
+                    </td>
+                    <td>{{ analise.tipo_analise }}</td>
+                    <td>
+                        <strong>{{ "%.2f"|format(analise.score) }}%</strong><br>
+                        <small>{{ analise.selo }}</small>
+                    </td>
+                    <td>{{ analise.last_modified_fmt }}</td>
+                    <td>
+                        <div style="display: inline-flex; justify-content: center; align-items: center; gap: 0.5rem;"> 
+                            <a href="{{ url_for('pagina_analise', analise_id=analise.id) }}" role="button" class="outline sm">Analisar</a>
+                            
+                            {% if analise.latest_report %}
+                                <a href="{{ url_for('download_relatorio', relatorio_id=analise.latest_report.id) }}" role="button" class="sm">Baixar</a>
+                            {% else %}
+                                <a href="#" role="button" class="secondary sm" disabled>Baixar</a>
+                            {% endif %}
+                            
+                            <form action="{{ url_for('delete_analise', analise_id=analise.id) }}" method="post" style="margin: 0;"
+                                  onsubmit="return confirm('Tem certeza que deseja apagar esta análise? Esta ação não pode ser desfeita.');">
+                                <button type="submit" class="outline sm danger" title="Apagar Análise" style="margin: 0;">
+                                    <i class="fa fa-trash-o" aria-hidden="true"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5">Nenhuma análise encontrada. Comece uma nova análise acima.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </article>
+{% endblock %}

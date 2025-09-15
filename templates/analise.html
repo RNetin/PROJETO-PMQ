@@ -1,0 +1,170 @@
+{% extends "layout.html" %}
+
+{% block content %}
+    <hgroup>
+        <h1>Analisando: <strong>{{ analise.get('site_nome', analise.site_url) }}</strong></h1>
+        <h3><a href="{{ url_for('dashboard') }}">‹ Voltar para o Painel de Controlo</a></h3>
+    </hgroup>
+
+    <style>
+        /* (Os seus estilos anteriores permanecem os mesmos) */
+        .tab-nav { display: flex; overflow-x: auto; border-bottom: 1px solid var(--pico-border-color); margin-bottom: var(--pico-spacing); list-style: none; padding-left: 0; }
+        .tab-nav li { flex-shrink: 0; margin-right: 0.5rem; }
+        .tab-nav li a { display: block; padding: 0.75rem 1.5rem; text-decoration: none; border-bottom: 3px solid transparent; font-weight: bold; }
+        .tab-nav li a.active { color: var(--pico-primary); border-color: var(--pico-primary); }
+        .secao-analise { display: none; }
+        .secao-analise.active { display: block; }
+        .criterio-item details { margin-bottom: 1rem; border: 1px solid var(--pico-form-element-border-color); border-radius: var(--pico-border-radius); }
+        .criterio-item summary { font-weight: bold; padding: 0.8rem 1rem; cursor: pointer; background-color: var(--pico-secondary-background-color); }
+        footer { margin-top: 2rem; text-align: right; border-top: 1px solid var(--pico-border-color); padding-top: var(--pico-spacing); }
+        .report-form { display: flex; justify-content: flex-end; align-items: center; gap: 1.5rem; }
+        .report-form fieldset { margin-bottom: 0; }
+        /* Estilo para o indicador de estado do salvamento */
+        #save-status { font-weight: bold; color: #6c757d; transition: color 0.3s ease; }
+    </style>
+
+    <nav>
+        <ul class="tab-nav" role="tablist">
+            {% for secao in matriz.keys() %}
+                <li><a href="#{{ secao | replace(' ', '-') | replace('(', '') | replace(')', '') }}" role="tab" data-target-id="{{ secao | replace(' ', '-') | replace('(', '') | replace(')', '') }}" {% if loop.first %}class="active"{% endif %}>{{ secao }}</a></li>
+            {% endfor %}
+        </ul>
+    </nav>
+    <input type="search" id="search-input" name="search" placeholder="Pesquisar por critério ou tópico...">
+
+    <div id="form-analise">
+        {% for secao, criterios in matriz.items() %}
+            <section class="secao-analise {% if loop.first %}active{% endif %}" id="{{ secao | replace(' ', '-') | replace('(', '') | replace(')', '') }}" role="tabpanel">
+                <hgroup>
+                    <h2>{{ secao }}</h2>
+                    <p>Detalhes e critérios para a seção de {{ secao | lower }}.</p>
+                </hgroup>
+                {% for item in criterios %}
+                    <details class="criterio-item">
+                        <summary>{{ item.topico }} - {{ item.criterio }}</summary>
+                        {% for sub in item.subcriterios %}
+                            {% set chave_base = secao ~ '_' ~ item.criterio ~ '_' ~ sub %}
+                            {% set chave_obs = chave_base ~ '_obs' %}
+                            <fieldset>
+                                <legend>{{ sub }}</legend>
+                                <label><input type="radio" name="{{ chave_base }}" value="Atende" data-obs-target="{{ chave_obs }}" {% if analise.respostas[chave_base] == 'Atende' %}checked{% endif %}> Atende</label>
+                                <label><input type="radio" name="{{ chave_base }}" value="Não Atende" data-obs-target="{{ chave_obs }}" {% if analise.respostas[chave_base] == 'Não Atende' %}checked{% endif %}> Não Atende</label>
+                            </fieldset>
+                            <textarea name="{{ chave_obs }}" class="obs-input" id="{{ chave_obs }}" placeholder="Justificativa para 'Não Atende'..." style="display: {% if analise.respostas[chave_base] == 'Não Atende' %}block{% else %}none{% endif %};">{{ analise.respostas.get(chave_obs, '') }}</textarea>
+                        {% endfor %}
+                    </details>
+                {% endfor %}
+            </section>
+        {% endfor %}
+    </div>
+
+    <footer>
+        <div class="report-form">
+            <span id="save-status">Tudo guardado</span>
+            
+            <form action="{{ url_for('gerar_relatorio_pdf', analise_id=analise.id) }}" method="post">
+                <fieldset>
+                    <label><input type="radio" name="tipo_relatorio" value="Relatório Completo" checked> Relatório Completo</label>
+                    <label><input type="radio" name="tipo_relatorio" value="Apenas Pontos a Melhorar"> Apenas Pontos a Melhorar</label>
+                </fieldset>
+                <button type="submit" class="contrast">Gerar Relatório PDF</button>
+            </form>
+        </div>
+    </footer>
+    
+    <!-- ===== Bloco de JavaScript Atualizado com Salvamento Automático ===== -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const formContainer = document.getElementById('form-analise');
+            const statusSpan = document.getElementById('save-status');
+            let autoSaveTimer = null;
+            const AUTO_SAVE_DELAY = 3000; // 3 segundos
+
+            // Função centralizada para salvar o progresso
+            function saveProgress() {
+                clearTimeout(autoSaveTimer); // Cancela qualquer salvamento automático pendente
+                statusSpan.textContent = 'A guardar...';
+                statusSpan.style.color = 'orange';
+
+                const respostas = {};
+                const allRadios = formContainer.querySelectorAll('input[type="radio"]:checked');
+                allRadios.forEach(radio => { respostas[radio.name] = radio.value; });
+                const allTextareas = formContainer.querySelectorAll('textarea');
+                allTextareas.forEach(textarea => { if (textarea.value.trim() !== '') { respostas[textarea.name] = textarea.value.trim(); } });
+
+                fetch("{{ url_for('salvar_progresso', analise_id=analise.id) }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(respostas)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'sucesso') {
+                        statusSpan.textContent = 'Tudo guardado';
+                        statusSpan.style.color = '#28a745'; // Verde
+                    } else {
+                        statusSpan.textContent = 'Erro ao guardar';
+                        statusSpan.style.color = '#dc3545'; // Vermelho
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro de rede:', error);
+                    statusSpan.textContent = 'Erro de conexão!';
+                    statusSpan.style.color = '#dc3545'; // Vermelho
+                });
+            }
+
+            // Ativa o salvamento automático quando qualquer campo do formulário é alterado
+            formContainer.addEventListener('input', function() {
+                clearTimeout(autoSaveTimer); // Reinicia o temporizador a cada alteração
+                statusSpan.textContent = 'Alterações não guardadas';
+                statusSpan.style.color = '#6c757d'; // Cinzento
+                autoSaveTimer = setTimeout(saveProgress, AUTO_SAVE_DELAY);
+            });
+            
+            // Lógica para mostrar/esconder a caixa de observação (sem alterações)
+            formContainer.addEventListener('change', function(event) {
+                if (event.target.type === 'radio') {
+                    const obsTargetId = event.target.dataset.obsTarget;
+                    const obsTextarea = document.getElementById(obsTargetId);
+                    if (obsTextarea) {
+                        obsTextarea.style.display = (event.target.value === 'Não Atende') ? 'block' : 'none';
+                    }
+                }
+            });
+
+            // --- Lógica de Navegação e Pesquisa (sem alterações) ---
+            const searchInput = document.getElementById('search-input');
+            const tabNav = document.querySelector('.tab-nav');
+            const allSections = document.querySelectorAll('.secao-analise');
+
+            tabNav.addEventListener('click', function(event) {
+                if (event.target.tagName === 'A' && event.target.closest('li')) {
+                    event.preventDefault();
+                    tabNav.querySelectorAll('a').forEach(link => link.classList.remove('active'));
+                    allSections.forEach(section => section.classList.remove('active'));
+                    event.target.classList.add('active');
+                    const targetId = event.target.dataset.targetId;
+                    const targetSection = document.getElementById(targetId);
+                    if (targetSection) {
+                        targetSection.classList.add('active');
+                        searchInput.value = '';
+                        filterCriteria('');
+                    }
+                }
+            });
+            searchInput.addEventListener('input', function() { filterCriteria(this.value.toLowerCase().trim()); });
+            function filterCriteria(searchTerm) {
+                allSections.forEach(section => {
+                    if (section.classList.contains('active')) {
+                        const criteriaInSection = section.querySelectorAll('.criterio-item');
+                        criteriaInSection.forEach(criterion => {
+                            const summaryText = criterion.querySelector('summary').textContent.toLowerCase();
+                            criterion.style.display = summaryText.includes(searchTerm) ? 'block' : 'none';
+                        });
+                    }
+                });
+            }
+        });
+    </script>
+{% endblock %}

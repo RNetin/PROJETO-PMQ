@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+
+{% block content %}
+    <article style="max-width: 400px; margin: 4em auto;">
+        <hgroup>
+            <h1>Login no Sistema</h1>
+            <h2>Acesse com suas credenciais</h2>
+        </hgroup>
+        <form method="post">
+            <label for="username">Usuário</label>
+            <input type="text" id="username" name="username" placeholder="Nome de usuário" required>
+            
+            <label for="password">Senha</label>
+            <input type="password" id="password" name="password" placeholder="Senha" required>
+            
+            <button type="submit">Entrar</button>
+        </form>
+    </article>
+{% endblock %}
