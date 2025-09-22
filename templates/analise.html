@@ -7,7 +7,7 @@
     </hgroup>
 
     <style>
-        /* (Os seus estilos anteriores permanecem os mesmos) */
+        /* ... (Os seus estilos anteriores permanecem os mesmos) ... */
         .tab-nav { display: flex; overflow-x: auto; border-bottom: 1px solid var(--pico-border-color); margin-bottom: var(--pico-spacing); list-style: none; padding-left: 0; }
         .tab-nav li { flex-shrink: 0; margin-right: 0.5rem; }
         .tab-nav li a { display: block; padding: 0.75rem 1.5rem; text-decoration: none; border-bottom: 3px solid transparent; font-weight: bold; }
@@ -19,8 +19,13 @@
         footer { margin-top: 2rem; text-align: right; border-top: 1px solid var(--pico-border-color); padding-top: var(--pico-spacing); }
         .report-form { display: flex; justify-content: flex-end; align-items: center; gap: 1.5rem; }
         .report-form fieldset { margin-bottom: 0; }
-        /* Estilo para o indicador de estado do salvamento */
         #save-status { font-weight: bold; color: #6c757d; transition: color 0.3s ease; }
+        /* NOVO: Container para os campos extras */
+        .extra-fields {
+            padding: 0 1rem 1rem 1rem;
+            border-top: 1px solid #e0e0e0;
+            margin-top: 1rem;
+        }
     </style>
 
     <nav>
@@ -45,12 +50,23 @@
                         {% for sub in item.subcriterios %}
                             {% set chave_base = secao ~ '_' ~ item.criterio ~ '_' ~ sub %}
                             {% set chave_obs = chave_base ~ '_obs' %}
+                            {% set chave_link = chave_base ~ '_link' %}
+                            
                             <fieldset>
                                 <legend>{{ sub }}</legend>
-                                <label><input type="radio" name="{{ chave_base }}" value="Atende" data-obs-target="{{ chave_obs }}" {% if analise.respostas[chave_base] == 'Atende' %}checked{% endif %}> Atende</label>
-                                <label><input type="radio" name="{{ chave_base }}" value="Não Atende" data-obs-target="{{ chave_obs }}" {% if analise.respostas[chave_base] == 'Não Atende' %}checked{% endif %}> Não Atende</label>
+                                <label><input type="radio" name="{{ chave_base }}" value="Atende" data-extra-fields-target="{{ chave_base }}_extra" {% if analise.respostas[chave_base] == 'Atende' %}checked{% endif %}> Atende</label>
+                                <label><input type="radio" name="{{ chave_base }}" value="Não Atende" data-extra-fields-target="{{ chave_base }}_extra" {% if analise.respostas[chave_base] == 'Não Atende' %}checked{% endif %}> Não Atende</label>
                             </fieldset>
-                            <textarea name="{{ chave_obs }}" class="obs-input" id="{{ chave_obs }}" placeholder="Justificativa para 'Não Atende'..." style="display: {% if analise.respostas[chave_base] == 'Não Atende' %}block{% else %}none{% endif %};">{{ analise.respostas.get(chave_obs, '') }}</textarea>
+                            
+                            <!-- Container para os campos de observação e link -->
+                            <div class="extra-fields" id="{{ chave_base }}_extra" style="display: {% if analise.respostas[chave_base] == 'Não Atende' %}block{% else %}none{% endif %};">
+                                <label for="{{ chave_obs }}">Observação / Justificativa</label>
+                                <textarea name="{{ chave_obs }}" id="{{ chave_obs }}" placeholder="Justificativa para 'Não Atende'...">{{ analise.respostas.get(chave_obs, '') }}</textarea>
+                                
+                                <label for="{{ chave_link }}">Link de Evidência</label>
+                                <input type="url" name="{{ chave_link }}" id="{{ chave_link }}" placeholder="https://..." value="{{ analise.respostas.get(chave_link, '') }}">
+                            </div>
+
                         {% endfor %}
                     </details>
                 {% endfor %}
@@ -61,7 +77,6 @@
     <footer>
         <div class="report-form">
             <span id="save-status">Tudo guardado</span>
-            
             <form action="{{ url_for('gerar_relatorio_pdf', analise_id=analise.id) }}" method="post">
                 <fieldset>
                     <label><input type="radio" name="tipo_relatorio" value="Relatório Completo" checked> Relatório Completo</label>
@@ -72,25 +87,28 @@
         </div>
     </footer>
     
-    <!-- ===== Bloco de JavaScript Atualizado com Salvamento Automático ===== -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const formContainer = document.getElementById('form-analise');
             const statusSpan = document.getElementById('save-status');
             let autoSaveTimer = null;
-            const AUTO_SAVE_DELAY = 3000; // 3 segundos
+            const AUTO_SAVE_DELAY = 3000;
 
-            // Função centralizada para salvar o progresso
             function saveProgress() {
-                clearTimeout(autoSaveTimer); // Cancela qualquer salvamento automático pendente
+                clearTimeout(autoSaveTimer);
                 statusSpan.textContent = 'A guardar...';
                 statusSpan.style.color = 'orange';
 
                 const respostas = {};
+                // Coleta os rádios
                 const allRadios = formContainer.querySelectorAll('input[type="radio"]:checked');
                 allRadios.forEach(radio => { respostas[radio.name] = radio.value; });
+                // Coleta as observações
                 const allTextareas = formContainer.querySelectorAll('textarea');
                 allTextareas.forEach(textarea => { if (textarea.value.trim() !== '') { respostas[textarea.name] = textarea.value.trim(); } });
+                // Coleta os links
+                const allLinks = formContainer.querySelectorAll('input[type="url"]');
+                allLinks.forEach(link => { if (link.value.trim() !== '') { respostas[link.name] = link.value.trim(); } });
 
                 fetch("{{ url_for('salvar_progresso', analise_id=analise.id) }}", {
                     method: 'POST',
@@ -99,36 +117,27 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.status === 'sucesso') {
-                        statusSpan.textContent = 'Tudo guardado';
-                        statusSpan.style.color = '#28a745'; // Verde
-                    } else {
-                        statusSpan.textContent = 'Erro ao guardar';
-                        statusSpan.style.color = '#dc3545'; // Vermelho
-                    }
+                    statusSpan.textContent = data.status === 'sucesso' ? 'Tudo guardado' : 'Erro ao guardar';
+                    statusSpan.style.color = data.status === 'sucesso' ? '#28a745' : '#dc3545';
                 })
                 .catch(error => {
                     console.error('Erro de rede:', error);
                     statusSpan.textContent = 'Erro de conexão!';
-                    statusSpan.style.color = '#dc3545'; // Vermelho
+                    statusSpan.style.color = '#dc3545';
                 });
             }
 
-            // Ativa o salvamento automático quando qualquer campo do formulário é alterado
-            formContainer.addEventListener('input', function() {
-                clearTimeout(autoSaveTimer); // Reinicia o temporizador a cada alteração
+            formContainer.addEventListener('input', function(event) {
+                clearTimeout(autoSaveTimer);
                 statusSpan.textContent = 'Alterações não guardadas';
-                statusSpan.style.color = '#6c757d'; // Cinzento
+                statusSpan.style.color = '#6c757d';
                 autoSaveTimer = setTimeout(saveProgress, AUTO_SAVE_DELAY);
-            });
-            
-            // Lógica para mostrar/esconder a caixa de observação (sem alterações)
-            formContainer.addEventListener('change', function(event) {
+
                 if (event.target.type === 'radio') {
-                    const obsTargetId = event.target.dataset.obsTarget;
-                    const obsTextarea = document.getElementById(obsTargetId);
-                    if (obsTextarea) {
-                        obsTextarea.style.display = (event.target.value === 'Não Atende') ? 'block' : 'none';
+                    const extraFieldsId = event.target.dataset.extraFieldsTarget;
+                    const extraFieldsDiv = document.getElementById(extraFieldsId);
+                    if (extraFieldsDiv) {
+                        extraFieldsDiv.style.display = (event.target.value === 'Não Atende') ? 'block' : 'none';
                     }
                 }
             });
@@ -137,34 +146,9 @@
             const searchInput = document.getElementById('search-input');
             const tabNav = document.querySelector('.tab-nav');
             const allSections = document.querySelectorAll('.secao-analise');
-
-            tabNav.addEventListener('click', function(event) {
-                if (event.target.tagName === 'A' && event.target.closest('li')) {
-                    event.preventDefault();
-                    tabNav.querySelectorAll('a').forEach(link => link.classList.remove('active'));
-                    allSections.forEach(section => section.classList.remove('active'));
-                    event.target.classList.add('active');
-                    const targetId = event.target.dataset.targetId;
-                    const targetSection = document.getElementById(targetId);
-                    if (targetSection) {
-                        targetSection.classList.add('active');
-                        searchInput.value = '';
-                        filterCriteria('');
-                    }
-                }
-            });
+            tabNav.addEventListener('click', function(event) { if (event.target.tagName === 'A' && event.target.closest('li')) { event.preventDefault(); tabNav.querySelectorAll('a').forEach(link => link.classList.remove('active')); allSections.forEach(section => section.classList.remove('active')); event.target.classList.add('active'); const targetId = event.target.dataset.targetId; const targetSection = document.getElementById(targetId); if (targetSection) { targetSection.classList.add('active'); searchInput.value = ''; filterCriteria(''); } } });
             searchInput.addEventListener('input', function() { filterCriteria(this.value.toLowerCase().trim()); });
-            function filterCriteria(searchTerm) {
-                allSections.forEach(section => {
-                    if (section.classList.contains('active')) {
-                        const criteriaInSection = section.querySelectorAll('.criterio-item');
-                        criteriaInSection.forEach(criterion => {
-                            const summaryText = criterion.querySelector('summary').textContent.toLowerCase();
-                            criterion.style.display = summaryText.includes(searchTerm) ? 'block' : 'none';
-                        });
-                    }
-                });
-            }
+            function filterCriteria(searchTerm) { allSections.forEach(section => { if (section.classList.contains('active')) { const criteriaInSection = section.querySelectorAll('.criterio-item'); criteriaInSection.forEach(criterion => { const summaryText = criterion.querySelector('summary').textContent.toLowerCase(); criterion.style.display = summaryText.includes(searchTerm) ? 'block' : 'none'; }); } }); }
         });
     </script>
 {% endblock %}

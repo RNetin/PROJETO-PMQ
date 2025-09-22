@@ -2,65 +2,21 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Relatório de Análise</title>
+    <title>Padrão Mínimo de Qualidade Assesi</title>
     <style>
-        /* --- Configurações Gerais da Página --- */
-        @page {
-            size: A4;
-            margin: 2.5cm 2cm 2cm 2cm; /* Margens para cabeçalho/rodapé */
-
-            @top-center {
-                content: element(header);
-            }
-            @bottom-right {
-                content: "Página " counter(page) " de " counter(pages);
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-                font-size: 9pt;
-                color: #888;
-            }
-        }
-
-        /* --- Estilo do Cabeçalho (Timbrado) --- */
-        #page-header {
-            position: running(header);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1.5px solid #e0e0e0;
-            padding-bottom: 8px;
-        }
-        #page-header img {
-            max-height: 45px;
-            max-width: 180px;
-        }
-        #page-header .header-text {
-            text-align: right;
-            font-size: 10pt;
-            color: #555;
-        }
-
-        /* --- Tipografia e Estilos Gerais do Corpo --- */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            font-size: 11pt;
-            line-height: 1.5;
-            color: #333;
-        }
-        h1, h2, h3 {
-            color: #2c3e50;
-            font-weight: 400; /* Fonte mais leve para os títulos */
-            line-height: 1.3;
-        }
-        
-        /* --- Estilos da Página de Rosto --- */
+        /* ... (os seus estilos anteriores permanecem os mesmos) ... */
+        @page { size: A4; margin: 2.5cm 2cm 2cm 2cm; @top-center { content: element(header); } @bottom-right { content: "Página " counter(page) " de " counter(pages); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 9pt; color: #888; } }
+        #page-header { position: running(header); display: flex; align-items: center; justify-content: space-between; border-bottom: 1.5px solid #e0e0e0; padding-bottom: 8px; }
+        #page-header img { max-height: 45px; max-width: 180px; }
+        #page-header .header-text { text-align: right; font-size: 10pt; color: #555; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #333; }
+        h1, h2, h3 { color: #2c3e50; font-weight: 400; line-height: 1.3; }
         .cover-title { font-size: 26pt; text-align: center; margin-top: 2.5cm; margin-bottom: 0.5cm; font-weight: 300; }
         .subtitulo { text-align: center; font-size: 16pt; font-weight: 500; margin-top: 0; margin-bottom: 4cm; }
         .score-box { text-align: center; margin-bottom: 4cm; }
         .score { font-size: 55pt; font-weight: 600; color: #007bff; margin: 0; }
         .selo { font-size: 18pt; font-weight: 500; margin-top: 0.5cm; color: #555; }
         .info { font-size: 11pt; line-height: 1.8; position: absolute; bottom: 2.5cm; width: 100%; text-align: center; }
-        
-        /* --- Estilos do Detalhamento --- */
         .page-break { page-break-before: always; }
         .secao { page-break-inside: avoid; margin-bottom: 1.5rem; border-top: 1px solid #ddd; padding-top: 1rem; }
         .secao h3 { font-size: 16pt; font-weight: 500; padding: 5px 0; border-bottom: 1px solid #eee; margin-bottom: 1rem;}
@@ -69,38 +25,29 @@
         li strong { font-size: 11pt; font-weight: 600; }
         li ul { padding-left: 25px; margin-top: 0.5rem; }
         li ul li { margin-bottom: 0.5rem; }
-
         .crit-atende { color: #28a745; }
         .crit-nao-atende { color: #dc3545; font-weight: bold; }
-        .observacao {
-            font-style: italic;
-            color: #6c757d;
-            padding: 10px;
-            border-left: 3px solid #ced4da;
-            margin-top: 5px;
-            margin-left: 18px;
-            background-color: #f8f9fa;
-        }
+        .observacao, .evidencia-link { margin-top: 5px; margin-left: 18px; padding: 10px; background-color: #f8f9fa; border-left: 3px solid #ced4da; }
+        .observacao { font-style: italic; color: #6c757d; }
+        .evidencia-link a { color: #007bff; text-decoration: none; word-wrap: break-word; }
     </style>
 </head>
 <body>
     <header id="page-header">
         <img src="/static/img/logo.png" alt="Logo">
         <div class="header-text">
-            <strong>Relatório de Análise de Transparência</strong><br>
+            <strong>Padrão Mínimo de Qualidade Assesi</strong><br>
             {{ site_nome }}
         </div>
     </header>
 
     <main>
-        <h1 class="cover-title">Relatório de Análise</h1>
+        <h1 class="cover-title">Padrão Mínimo de Qualidade Assesi</h1>
         <p class="subtitulo">{{ site_nome }}</p>
-        
         <div class="score-box">
             <div class="score">{{ "%.2f"|format(resultados.indice) }}%</div>
             <div class="selo">Selo de Qualidade: {{ resultados.selo }}</div>
         </div>
-        
         <div class="info">
             <strong>Análise feita por:</strong> {{ nome_usuario }}<br>
             <strong>Data de Geração:</strong> {{ data_geracao }}
@@ -120,6 +67,7 @@
                             {% for sub in item.subcriterios %}
                                 {% set chave_base = secao ~ '_' ~ item.criterio ~ '_' ~ sub %}
                                 {% set chave_obs = chave_base ~ '_obs' %}
+                                {% set chave_link = chave_base ~ '_link' %}
                                 
                                 {% if respostas.get(chave_base) == 'Atende' %}
                                     <li class="crit-atende">✓ {{ sub }}</li>
@@ -127,6 +75,12 @@
                                     <li class="crit-nao-atende">✗ {{ sub }}</li>
                                     {% if respostas.get(chave_obs) %}
                                         <p class="observacao">Obs: {{ respostas[chave_obs] }}</p>
+                                    {% endif %}
+                                    <!-- NOVO BLOCO PARA EXIBIR O LINK -->
+                                    {% if respostas.get(chave_link) %}
+                                        <div class="evidencia-link">
+                                            <strong>Link:</strong> <a href="{{ respostas[chave_link] }}">{{ respostas[chave_link] }}</a>
+                                        </div>
                                     {% endif %}
                                 {% else %}
                                     <li>- {{ sub }} (Não avaliado)</li>

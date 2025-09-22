@@ -1,0 +1,6 @@
+Flask
+Werkzeug
+WeasyPrint
+gunicorn
+sqlite3
+json
