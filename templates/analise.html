@@ -1,154 +1,232 @@
 {% extends "layout.html" %}
-
 {% block content %}
-    <hgroup>
-        <h1>Analisando: <strong>{{ analise.get('site_nome', analise.site_url) }}</strong></h1>
-        <h3><a href="{{ url_for('dashboard') }}">‹ Voltar para o Painel de Controlo</a></h3>
-    </hgroup>
+<hgroup>
+    <h1>Analisando: <strong>{{ analise.get('site_nome', analise.site_url) }}</strong></h1>
+    <h3><a href="{{ url_for('dashboard') }}">‹ Voltar para o Painel de Controlo</a></h3>
+</hgroup>
+<style>
+    .tab-nav { display: flex; overflow-x: auto; border-bottom: 1px solid var(--pico-border-color); margin-bottom: var(--pico-spacing); list-style: none; padding-left: 0; }
+    .tab-nav li { flex-shrink: 0; margin-right: 0.5rem; }
+    .tab-nav li a { display: block; padding: 0.75rem 1.5rem; text-decoration: none; border-bottom: 3px solid transparent; font-weight: bold; }
+    .tab-nav li a.active { color: var(--pico-primary); border-color: var(--pico-primary); }
+    .secao-analise { display: none; }
+    .secao-analise.active { display: block; }
+    .criterio-item details { margin-bottom: 1rem; border: 1px solid var(--pico-form-element-border-color); border-radius: var(--pico-border-radius); }
+    .criterio-item summary { font-weight: bold; padding: 0.8rem 1rem; cursor: pointer; background-color: var(--pico-secondary-background-color); }
+    footer { margin-top: 2rem; text-align: right; border-top: 1px solid var(--pico-border-color); padding-top: var(--pico-spacing); }
+    .report-form { display: flex; justify-content: flex-end; align-items: center; gap: 1.5rem; }
+    .report-form fieldset { margin-bottom: 0; }
+    #save-status { font-weight: bold; color: #6c757d; transition: color 0.3s ease; }
+    .extra-fields { padding: 0 1rem 1rem 1rem; border-top: 1px solid #e0e0e0; margin-top: 1rem; }
+    .checklist-item { display: block; margin-bottom: 1rem; padding-left: 1rem; }
+    .checklist-item input[type="checkbox"] { margin-right: 0.75rem; }
+</style>
 
-    <style>
-        /* ... (Os seus estilos anteriores permanecem os mesmos) ... */
-        .tab-nav { display: flex; overflow-x: auto; border-bottom: 1px solid var(--pico-border-color); margin-bottom: var(--pico-spacing); list-style: none; padding-left: 0; }
-        .tab-nav li { flex-shrink: 0; margin-right: 0.5rem; }
-        .tab-nav li a { display: block; padding: 0.75rem 1.5rem; text-decoration: none; border-bottom: 3px solid transparent; font-weight: bold; }
-        .tab-nav li a.active { color: var(--pico-primary); border-color: var(--pico-primary); }
-        .secao-analise { display: none; }
-        .secao-analise.active { display: block; }
-        .criterio-item details { margin-bottom: 1rem; border: 1px solid var(--pico-form-element-border-color); border-radius: var(--pico-border-radius); }
-        .criterio-item summary { font-weight: bold; padding: 0.8rem 1rem; cursor: pointer; background-color: var(--pico-secondary-background-color); }
-        footer { margin-top: 2rem; text-align: right; border-top: 1px solid var(--pico-border-color); padding-top: var(--pico-spacing); }
-        .report-form { display: flex; justify-content: flex-end; align-items: center; gap: 1.5rem; }
-        .report-form fieldset { margin-bottom: 0; }
-        #save-status { font-weight: bold; color: #6c757d; transition: color 0.3s ease; }
-        /* NOVO: Container para os campos extras */
-        .extra-fields {
-            padding: 0 1rem 1rem 1rem;
-            border-top: 1px solid #e0e0e0;
-            margin-top: 1rem;
-        }
-    </style>
-
-    <nav>
-        <ul class="tab-nav" role="tablist">
-            {% for secao in matriz.keys() %}
-                <li><a href="#{{ secao | replace(' ', '-') | replace('(', '') | replace(')', '') }}" role="tab" data-target-id="{{ secao | replace(' ', '-') | replace('(', '') | replace(')', '') }}" {% if loop.first %}class="active"{% endif %}>{{ secao }}</a></li>
-            {% endfor %}
-        </ul>
-    </nav>
-    <input type="search" id="search-input" name="search" placeholder="Pesquisar por critério ou tópico...">
-
-    <div id="form-analise">
-        {% for secao, criterios in matriz.items() %}
-            <section class="secao-analise {% if loop.first %}active{% endif %}" id="{{ secao | replace(' ', '-') | replace('(', '') | replace(')', '') }}" role="tabpanel">
-                <hgroup>
-                    <h2>{{ secao }}</h2>
-                    <p>Detalhes e critérios para a seção de {{ secao | lower }}.</p>
-                </hgroup>
-                {% for item in criterios %}
-                    <details class="criterio-item">
-                        <summary>{{ item.topico }} - {{ item.criterio }}</summary>
-                        {% for sub in item.subcriterios %}
-                            {% set chave_base = secao ~ '_' ~ item.criterio ~ '_' ~ sub %}
-                            {% set chave_obs = chave_base ~ '_obs' %}
-                            {% set chave_link = chave_base ~ '_link' %}
-                            
-                            <fieldset>
-                                <legend>{{ sub }}</legend>
-                                <label><input type="radio" name="{{ chave_base }}" value="Atende" data-extra-fields-target="{{ chave_base }}_extra" {% if analise.respostas[chave_base] == 'Atende' %}checked{% endif %}> Atende</label>
-                                <label><input type="radio" name="{{ chave_base }}" value="Não Atende" data-extra-fields-target="{{ chave_base }}_extra" {% if analise.respostas[chave_base] == 'Não Atende' %}checked{% endif %}> Não Atende</label>
-                            </fieldset>
-                            
-                            <!-- Container para os campos de observação e link -->
-                            <div class="extra-fields" id="{{ chave_base }}_extra" style="display: {% if analise.respostas[chave_base] == 'Não Atende' %}block{% else %}none{% endif %};">
-                                <label for="{{ chave_obs }}">Observação / Justificativa</label>
-                                <textarea name="{{ chave_obs }}" id="{{ chave_obs }}" placeholder="Justificativa para 'Não Atende'...">{{ analise.respostas.get(chave_obs, '') }}</textarea>
-                                
-                                <label for="{{ chave_link }}">Link de Evidência</label>
-                                <input type="url" name="{{ chave_link }}" id="{{ chave_link }}" placeholder="https://..." value="{{ analise.respostas.get(chave_link, '') }}">
-                            </div>
-
-                        {% endfor %}
-                    </details>
-                {% endfor %}
-            </section>
+<nav>
+    <ul class="tab-nav" role="tablist">
+        {% for secao in matriz.keys() %}
+        <li><a href="#{{ secao | replace(' ', '-') | replace('(', '') | replace(')', '') }}" role="tab" data-target-id="{{ secao | replace(' ', '-') | replace('(', '') | replace(')', '') }}" {% if loop.first %}class="active"{% endif %}>{{ secao }}</a></li>
         {% endfor %}
-    </div>
+    </ul>
+</nav>
+<input type="search" id="search-input" name="search" placeholder="Pesquisar por critério ou tópico...">
 
-    <footer>
-        <div class="report-form">
-            <span id="save-status">Tudo guardado</span>
-            <form action="{{ url_for('gerar_relatorio_pdf', analise_id=analise.id) }}" method="post">
-                <fieldset>
-                    <label><input type="radio" name="tipo_relatorio" value="Relatório Completo" checked> Relatório Completo</label>
-                    <label><input type="radio" name="tipo_relatorio" value="Apenas Pontos a Melhorar"> Apenas Pontos a Melhorar</label>
+<div id="form-analise">
+    {% for secao, criterios in matriz.items() %}
+    <section class="secao-analise {% if loop.first %}active{% endif %}" id="{{ secao | replace(' ', '-') | replace('(', '') | replace(')', '') }}" role="tabpanel">
+        <hgroup>
+            <h2>{{ secao }}</h2>
+            <p>Marque os critérios que <strong>não são atendidos</strong>.</p>
+        </hgroup>
+        
+        {% for item in criterios %}
+        <details class="criterio-item">
+            <summary>{{ item.topico }} - {{ item.criterio }}</summary>
+            {% for sub in item.subcriterios %}
+                {% set chave_base = secao ~ '_' ~ item.criterio ~ '_' ~ sub %}
+                {% set chave_obs = chave_base ~ '_obs' %}
+                {% set chave_link = chave_base ~ '_link' %}
+                <div class="checklist-item">
+                    <label>
+                        <input type="checkbox" name="{{ chave_base }}" data-extra-fields-target="{{ chave_base }}_extra" {% if analise.respostas.get(chave_base) == 'Não Atende' %}checked{% endif %}>
+                        {{ sub }}
+                    </label>
+                </div>
+                <div class="extra-fields" id="{{ chave_base }}_extra" style="display: {% if analise.respostas.get(chave_base) == 'Não Atende' %}block{% else %}none{% endif %};">
+                    <label for="{{ chave_obs }}">Observação / Justificativa</label>
+                    <textarea name="{{ chave_obs }}" id="{{ chave_obs }}" placeholder="Justificativa...">{{ analise.respostas.get(chave_obs, '') }}</textarea>
+                    <label for="{{ chave_link }}">Link de Evidência</label>
+                    <input type="url" name="{{ chave_link }}" id="{{ chave_link }}" placeholder="https://..." value="{{ analise.respostas.get(chave_link, '') }}">
+                </div>
+            {% endfor %}
+        </details>
+        {% endfor %}
+
+        {% if secao in ['RECEITA', 'DESPESA'] %}
+        <article id="upload-article-{{ secao }}" style="display: none; padding: 1rem; margin-top: 1.5rem; border-top: 1px solid var(--pico-form-element-border-color);">
+            <label for="imagem_justificativa_{{ secao }}">
+                <h6 style="margin-bottom: 0.5rem;">Anexar Imagem de Justificativa</h6>
+            </label>
+            <form method="post" enctype="multipart/form-data" style="margin-bottom: 0.5rem;">
+                <input type="hidden" name="secao" value="{{ secao }}">
+                <fieldset role="group">
+                    <input type="file" id="imagem_justificativa_{{ secao }}" name="imagem_justificativa" accept="image/png, image/jpeg, image/gif">
+                    <input type="submit" class="secondary outline" value="Enviar">
                 </fieldset>
-                <button type="submit" class="contrast">Gerar Relatório PDF</button>
             </form>
-        </div>
-    </footer>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const formContainer = document.getElementById('form-analise');
-            const statusSpan = document.getElementById('save-status');
-            let autoSaveTimer = null;
-            const AUTO_SAVE_DELAY = 3000;
+            {% set image_path = analise.get(secao.lower() + '_img_path') %}
+            {% if image_path %}
+            <small><strong>Ficheiro atual:</strong> {{ image_path }}</small>
+            {% endif %}
+        </article>
+        {% endif %}
 
-            function saveProgress() {
-                clearTimeout(autoSaveTimer);
-                statusSpan.textContent = 'A guardar...';
-                statusSpan.style.color = 'orange';
+    </section>
+    {% endfor %}
+</div>
 
-                const respostas = {};
-                // Coleta os rádios
-                const allRadios = formContainer.querySelectorAll('input[type="radio"]:checked');
-                allRadios.forEach(radio => { respostas[radio.name] = radio.value; });
-                // Coleta as observações
-                const allTextareas = formContainer.querySelectorAll('textarea');
-                allTextareas.forEach(textarea => { if (textarea.value.trim() !== '') { respostas[textarea.name] = textarea.value.trim(); } });
-                // Coleta os links
-                const allLinks = formContainer.querySelectorAll('input[type="url"]');
-                allLinks.forEach(link => { if (link.value.trim() !== '') { respostas[link.name] = link.value.trim(); } });
+<footer>
+    <div class="report-form">
+        <span id="save-status">Tudo guardado</span>
+        <form action="{{ url_for('gerar_relatorio_pdf', analise_id=analise.id) }}" method="post">
+            <fieldset>
+                <label>
+                    <input type="radio" name="tipo_relatorio" value="Relatório Completo" checked>
+                    Relatório Completo
+                </label>
+                <label>
+                    <input type="radio" name="tipo_relatorio" value="Apenas Pontos a Melhorar">
+                    Apenas Pontos a Melhorar
+                </label>
+            </fieldset>
+            <button type="submit" class="contrast">Gerar Relatório PDF</button>
+        </form>
+    </div>
+</footer>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const formContainer = document.getElementById('form-analise');
+        const statusSpan = document.getElementById('save-status');
+        let autoSaveTimer = null;
+        const AUTO_SAVE_DELAY = 3000;
 
-                fetch("{{ url_for('salvar_progresso', analise_id=analise.id) }}", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(respostas)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    statusSpan.textContent = data.status === 'sucesso' ? 'Tudo guardado' : 'Erro ao guardar';
-                    statusSpan.style.color = data.status === 'sucesso' ? '#28a745' : '#dc3545';
-                })
-                .catch(error => {
-                    console.error('Erro de rede:', error);
-                    statusSpan.textContent = 'Erro de conexão!';
-                    statusSpan.style.color = '#dc3545';
-                });
-            }
-
-            formContainer.addEventListener('input', function(event) {
-                clearTimeout(autoSaveTimer);
-                statusSpan.textContent = 'Alterações não guardadas';
-                statusSpan.style.color = '#6c757d';
-                autoSaveTimer = setTimeout(saveProgress, AUTO_SAVE_DELAY);
-
-                if (event.target.type === 'radio') {
-                    const extraFieldsId = event.target.dataset.extraFieldsTarget;
-                    const extraFieldsDiv = document.getElementById(extraFieldsId);
-                    if (extraFieldsDiv) {
-                        extraFieldsDiv.style.display = (event.target.value === 'Não Atende') ? 'block' : 'none';
-                    }
-                }
+        function saveProgress() {
+            clearTimeout(autoSaveTimer);
+            statusSpan.textContent = 'A guardar...';
+            statusSpan.style.color = 'orange';
+            const respostas = {};
+            
+            const allCheckboxes = formContainer.querySelectorAll('input[type="checkbox"]');
+            allCheckboxes.forEach(checkbox => {
+                respostas[checkbox.name] = checkbox.checked ? 'Não Atende' : 'Atende';
             });
 
-            // --- Lógica de Navegação e Pesquisa (sem alterações) ---
-            const searchInput = document.getElementById('search-input');
-            const tabNav = document.querySelector('.tab-nav');
-            const allSections = document.querySelectorAll('.secao-analise');
-            tabNav.addEventListener('click', function(event) { if (event.target.tagName === 'A' && event.target.closest('li')) { event.preventDefault(); tabNav.querySelectorAll('a').forEach(link => link.classList.remove('active')); allSections.forEach(section => section.classList.remove('active')); event.target.classList.add('active'); const targetId = event.target.dataset.targetId; const targetSection = document.getElementById(targetId); if (targetSection) { targetSection.classList.add('active'); searchInput.value = ''; filterCriteria(''); } } });
-            searchInput.addEventListener('input', function() { filterCriteria(this.value.toLowerCase().trim()); });
-            function filterCriteria(searchTerm) { allSections.forEach(section => { if (section.classList.contains('active')) { const criteriaInSection = section.querySelectorAll('.criterio-item'); criteriaInSection.forEach(criterion => { const summaryText = criterion.querySelector('summary').textContent.toLowerCase(); criterion.style.display = summaryText.includes(searchTerm) ? 'block' : 'none'; }); } }); }
+            const allTextareas = formContainer.querySelectorAll('textarea');
+            allTextareas.forEach(textarea => { if (textarea.value.trim() !== '') { respostas[textarea.name] = textarea.value.trim(); } });
+
+            const allLinks = formContainer.querySelectorAll('input[type="url"]');
+            allLinks.forEach(link => { if (link.value.trim() !== '') { respostas[link.name] = link.value.trim(); } });
+
+            fetch("{{ url_for('salvar_progresso', analise_id=analise.id) }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(respostas)
+            })
+            .then(response => response.json())
+            .then(data => {
+                statusSpan.textContent = data.status === 'sucesso' ? 'Tudo guardado' : 'Erro ao guardar';
+                statusSpan.style.color = data.status === 'sucesso' ? '#28a745' : '#dc3545';
+            })
+            .catch(error => {
+                console.error('Erro de rede:', error);
+                statusSpan.textContent = 'Erro de conexão!';
+                statusSpan.style.color = '#dc3545';
+            });
+        }
+        
+        function checkUploadFormVisibility(secao) {
+            const secaoId = secao.replace(/ /g, '-').replace(/\(/g, '').replace(/\)/g, '');
+            const sectionContainer = document.getElementById(secaoId);
+            const uploadArticle = document.getElementById(`upload-article-${secao}`);
+            
+            if (!sectionContainer || !uploadArticle) return;
+
+            const checkboxes = sectionContainer.querySelectorAll('.criterio-item input[type="checkbox"]');
+            const isAnyCheckboxChecked = Array.from(checkboxes).some(cb => cb.checked);
+            
+            uploadArticle.style.display = isAnyCheckboxChecked ? 'block' : 'none';
+        }
+
+        checkUploadFormVisibility('RECEITA');
+        checkUploadFormVisibility('DESPESA');
+
+        formContainer.addEventListener('input', function(event) {
+            clearTimeout(autoSaveTimer);
+            statusSpan.textContent = 'Alterações não guardadas';
+            statusSpan.style.color = '#6c757d';
+            autoSaveTimer = setTimeout(saveProgress, AUTO_SAVE_DELAY);
+
+            if (event.target.type === 'checkbox') {
+                const extraFieldsId = event.target.dataset.extraFieldsTarget;
+                const extraFieldsDiv = document.getElementById(extraFieldsId);
+                if (extraFieldsDiv) {
+                    extraFieldsDiv.style.display = event.target.checked ? 'block' : 'none';
+                }
+
+                const parentSection = event.target.closest('.secao-analise');
+                if (parentSection && (parentSection.id.includes('RECEITA') || parentSection.id.includes('DESPESA'))) {
+                    const secaoName = parentSection.id.includes('RECEITA') ? 'RECEITA' : 'DESPESA';
+                    checkUploadFormVisibility(secaoName);
+                }
+            }
         });
-    </script>
+
+        const searchInput = document.getElementById('search-input');
+        const tabNav = document.querySelector('.tab-nav');
+        const allSections = document.querySelectorAll('.secao-analise');
+        
+        tabNav.addEventListener('click', function(event) {
+            if (event.target.tagName === 'A' && event.target.closest('li')) {
+                event.preventDefault();
+                tabNav.querySelectorAll('a').forEach(link => link.classList.remove('active'));
+                allSections.forEach(section => section.classList.remove('active'));
+                event.target.classList.add('active');
+                const targetId = event.target.dataset.targetId;
+                const targetSection = document.getElementById(targetId);
+                if (targetSection) {
+                    targetSection.classList.add('active');
+                    searchInput.value = '';
+                    filterCriteria('');
+                }
+            }
+        });
+
+        searchInput.addEventListener('input', function() { filterCriteria(this.value.toLowerCase().trim()); });
+
+        function filterCriteria(searchTerm) {
+            if (!searchTerm) {
+                allSections.forEach(section => {
+                    section.style.display = section.classList.contains('active') ? 'block' : 'none';
+                    section.querySelectorAll('.criterio-item').forEach(criterion => { criterion.style.display = 'block'; });
+                });
+                return;
+            }
+
+            allSections.forEach(section => {
+                let sectionHasVisibleCriteria = false;
+                const criteriaInSection = section.querySelectorAll('.criterio-item');
+                criteriaInSection.forEach(criterion => {
+                    const summaryText = criterion.querySelector('summary').textContent.toLowerCase();
+                    if (summaryText.includes(searchTerm)) {
+                        criterion.style.display = 'block';
+                        sectionHasVisibleCriteria = true;
+                    } else {
+                        criterion.style.display = 'none';
+                    }
+                });
+                section.style.display = sectionHasVisibleCriteria ? 'block' : 'none';
+            });
+        }
+    });
+</script>
 {% endblock %}

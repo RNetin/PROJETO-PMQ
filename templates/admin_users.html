@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<hgroup>
+    <h1>Gestão de Utilizadores</h1>
+    <h2>Gerir todos os utilizadores registados no sistema.</h2>
+</hgroup>
+<article>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nome de Utilizador</th>
+                <th style="text-align: center;">Admin?</th>
+                <th style="text-align: center; width: 15%;">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user.id }}</td>
+                <td>{{ user.username }}</td>
+                <td style="text-align: center;">
+                    {# Adiciona um estilo visual para o status de admin #}
+                    {% if user.is_admin %}
+                        <span style="color: var(--pico-color-green-500);">✓ Sim</span>
+                    {% else %}
+                        <span style="color: var(--pico-color-red-500);">✗ Não</span>
+                    {% endif %}
+                </td>
+                <td style="text-align: center;">
+                    {# Impede que o admin se apague a si mesmo #}
+                    {% if user.username != session.username %}
+                    <form action="{{ url_for('delete_user', user_id=user.id) }}" method="post" style="margin: 0;" onsubmit="return confirm('Tem a certeza que quer apagar o utilizador {{ user.username }}? Todas as suas análises serão perdidas.');">
+                        <button type="submit" class="outline sm danger" title="Apagar Utilizador">
+                            <i class="fa fa-trash-o" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4">Nenhum utilizador encontrado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</article>
+{% endblock %}

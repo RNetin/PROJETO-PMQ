@@ -8,39 +8,30 @@ def init_db():
     conn = sqlite3.connect(DB_NAME, timeout=15)
     cursor = conn.cursor()
     cursor.execute("PRAGMA foreign_keys = ON;")
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS analises (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            site_url TEXT NOT NULL,
-            site_nome TEXT,
-            tipo_analise TEXT,
-            respostas TEXT,
-            last_modified TIMESTAMP
-        )
-    ''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, is_admin INTEGER NOT NULL DEFAULT 0)''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS analises (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        username TEXT NOT NULL, 
+        site_url TEXT NOT NULL, 
+        site_nome TEXT, 
+        tipo_analise TEXT, 
+        respostas TEXT, 
+        last_modified TIMESTAMP, 
+        receita_img_path TEXT, 
+        despesa_img_path TEXT
+    )''')
     try:
         cursor.execute('CREATE UNIQUE INDEX idx_user_url_tipo ON analises (username, site_url, tipo_analise)')
     except sqlite3.OperationalError:
         pass
-        
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS relatorios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            analise_id INTEGER,
-            nome_arquivo TEXT,
-            dados_pdf BLOB,
-            data_geracao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(analise_id) REFERENCES analises(id) ON DELETE CASCADE
-        )
-    ''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS relatorios (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        analise_id INTEGER, 
+        nome_arquivo TEXT, 
+        dados_pdf BLOB, 
+        data_geracao TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+        FOREIGN KEY(analise_id) REFERENCES analises(id) ON DELETE CASCADE
+    )''')
     conn.commit()
     conn.close()
 
@@ -59,11 +50,48 @@ def get_user_by_username(username):
     conn.close()
     return user
 
+def add_new_user(username, password_hash):
+    conn = sqlite3.connect(DB_NAME, timeout=15)
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", (username, password_hash))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        return False
+    conn.close()
+    return True
+
+def list_all_users():
+    conn = sqlite3.connect(DB_NAME, timeout=15)
+    conn.row_factory = dict_factory
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, username, is_admin FROM users ORDER BY username")
+    users = cursor.fetchall()
+    conn.close()
+    return users
+
+def delete_user_by_id(user_id):
+    conn = sqlite3.connect(DB_NAME, timeout=15)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA foreign_keys = ON;")
+    cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+def list_all_reports():
+    conn = sqlite3.connect(DB_NAME, timeout=15)
+    conn.row_factory = dict_factory
+    cursor = conn.cursor()
+    cursor.execute("SELECT r.id, r.nome_arquivo, r.data_geracao, a.site_nome, a.tipo_analise, u.username FROM relatorios r JOIN analises a ON r.analise_id = a.id JOIN users u ON a.username = u.username ORDER BY r.data_geracao DESC")
+    reports = cursor.fetchall()
+    conn.close()
+    return reports
+
 def carregar_ou_criar_analise(username, site_url, site_nome, tipo_analise):
     conn = sqlite3.connect(DB_NAME, timeout=15)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, respostas FROM analises WHERE username = ? AND site_url = ? AND tipo_analise = ?", 
-                   (username, site_url, tipo_analise))
+    cursor.execute("SELECT id, respostas FROM analises WHERE username = ? AND site_url = ? AND tipo_analise = ?", (username, site_url, tipo_analise))
     row = cursor.fetchone()
     if row:
         analise_id, respostas_json = row
@@ -71,8 +99,7 @@ def carregar_ou_criar_analise(username, site_url, site_nome, tipo_analise):
         cursor.execute("UPDATE analises SET site_nome = ?, last_modified = ? WHERE id = ?", (site_nome, datetime.now(), analise_id))
         conn.commit()
     else:
-        cursor.execute("INSERT INTO analises (username, site_url, site_nome, tipo_analise, respostas, last_modified) VALUES (?, ?, ?, ?, ?, ?)", 
-                       (username, site_url, site_nome, tipo_analise, json.dumps({}), datetime.now()))
+        cursor.execute("INSERT INTO analises (username, site_url, site_nome, tipo_analise, respostas, last_modified) VALUES (?, ?, ?, ?, ?, ?)", (username, site_url, site_nome, tipo_analise, json.dumps({}), datetime.now()))
         conn.commit()
         analise_id = cursor.lastrowid
         respostas = {}
@@ -93,10 +120,7 @@ def listar_analises_por_usuario(username):
     cursor.execute("SELECT id, site_url, site_nome, tipo_analise, last_modified, respostas FROM analises WHERE username = ? ORDER BY last_modified DESC", (username,))
     analises = cursor.fetchall()
     for analise in analises:
-        if analise.get('respostas'):
-            analise['respostas'] = json.loads(analise['respostas'])
-        else:
-            analise['respostas'] = {}
+        analise['respostas'] = json.loads(analise['respostas']) if analise.get('respostas') else {}
     conn.close()
     return analises
 
@@ -117,8 +141,7 @@ def obter_analise_por_id(analise_id, username):
 def salvar_relatorio_db(analise_id, nome_arquivo, dados_pdf):
     conn = sqlite3.connect(DB_NAME, timeout=15)
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO relatorios (analise_id, nome_arquivo, dados_pdf) VALUES (?, ?, ?)",
-                   (analise_id, nome_arquivo, dados_pdf))
+    cursor.execute("INSERT INTO relatorios (analise_id, nome_arquivo, dados_pdf) VALUES (?, ?, ?)", (analise_id, nome_arquivo, dados_pdf))
     conn.commit()
     conn.close()
 
@@ -149,3 +172,11 @@ def delete_analise_by_id(analise_id, username):
     changes = conn.total_changes
     conn.close()
     return changes > 0
+
+def update_image_path(analise_id, secao, filename):
+    column_name = f"{secao.lower()}_img_path"
+    conn = sqlite3.connect(DB_NAME, timeout=15)
+    cursor = conn.cursor()
+    cursor.execute(f"UPDATE analises SET {column_name} = ? WHERE id = ?", (filename, analise_id))
+    conn.commit()
+    conn.close()

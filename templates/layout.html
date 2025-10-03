@@ -35,12 +35,18 @@
         }
     </style>
 </head>
+
 <body>
     <main class="container">
         {% if session.username %}
         <nav>
             <ul>
-                <li><strong>Analisador de Transparência</strong></li>
+                <li><strong><a href="{{ url_for('dashboard') }}">Analisador de Transparência</a></strong></li>
+                <!-- NOVOS LINKS DE ADMINISTRAÇÃO -->
+                {% if session.is_admin %}
+                    <li><a href="{{ url_for('admin_users') }}">Gerir Utilizadores</a></li>
+                    <li><a href="{{ url_for('admin_reports') }}">Ver Relatórios</a></li>
+                {% endif %}
             </ul>
             <ul>
                 <li>Bem-vindo, {{ session.username }}!</li>

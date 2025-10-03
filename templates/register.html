@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+{% block content %}
+<article style="max-width: 400px; margin: 4em auto;">
+    <hgroup>
+        <h1>Registar Novo Utilizador</h1>
+        <h2>Crie a sua conta para começar a analisar.</h2>
+    </hgroup>
+    <form method="post">
+        <label for="username">Nome de utilizador</label>
+        <input type="text" id="username" name="username" placeholder="Nome de utilizador" required>
+        <label for="password">Senha</label>
+        <input type="password" id="password" name="password" placeholder="Senha" required>
+        <button type="submit">Registar</button>
+    </form>
+    <p>Já tem uma conta? <a href="{{ url_for('login') }}">Faça login.</a></p>
+</article>
+{% endblock %}

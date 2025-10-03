@@ -5,7 +5,7 @@ from functools import lru_cache
 from urllib.parse import urlparse
 from weasyprint import HTML
 
-# ... (o resto das funções, como carregar_criterios, etc., continuam iguais) ...
+
 
 @lru_cache(maxsize=4)
 def carregar_criterios(caminho_arquivo="data/criterios_analise_site.json"):
@@ -78,7 +78,7 @@ def gerar_relatorio_com_weasyprint(html_string, site_url, base_url):
     nome_base = f"Relatorio_{safe_filename_part}_{timestamp}"
     nome_arquivo_pdf = f"{nome_base}.pdf"
 
-    # AQUI ESTÁ A MUDANÇA: passamos a base_url para o WeasyPrint
+  
     pdf_data = HTML(string=html_string, base_url=base_url).write_pdf()
 
     return nome_arquivo_pdf, pdf_data

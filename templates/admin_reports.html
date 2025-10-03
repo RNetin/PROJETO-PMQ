@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<hgroup>
+    <h1>Todos os Relatórios</h1>
+    <h2>Ver todos os relatórios gerados por todos os utilizadores.</h2>
+</hgroup>
+<article>
+    <table>
+        <thead>
+            <tr>
+                <th>Utilizador</th>
+                <th>Análise</th>
+                <th>Tipo</th>
+                <th>Data de Geração</th>
+                <th style="text-align: center; width: 15%;">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for report in reports %}
+            <tr>
+                <td>{{ report.username }}</td>
+                <td>{{ report.site_nome }}</td>
+                <td>{{ report.tipo_analise }}</td>
+                {# Formata a data para remover os segundos #}
+                <td>{{ report.data_geracao.split('.')[0][:-3] }}</td>
+                <td style="text-align: center;">
+                    <a href="{{ url_for('download_relatorio', relatorio_id=report.id) }}" role="button" class="sm">Descarregar</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5">Nenhum relatório foi gerado ainda no sistema.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</article>
+{% endblock %}
